@@ -1,6 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <string.h>
 
 /* getline: read a line into s, return length */
 int getline(char *s, int lim) {
@@ -23,27 +25,23 @@ int getline(char *s, int lim) {
     return i;
 }
 
-unsigned getbits(unsigned x, int p, int n) {
-    return (x >> (p + 1 - n)) & ~(~0 << n);
-}
-
 bool tag_encode(char* tag, bool first_byte, bool *constructed) {
-    int binaryTag = (int)strtol(tag, NULL, 16);
+    int decimalTag = (int)strtol(tag, NULL, 16);
 
     if (first_byte) { // of the tag
         // Get the 6th bit
-        if (getbits(binaryTag, 5, 1)) {
+        if (decimalTag & 0x20) {
             *constructed = true;
         }
         // Get the first 5 bits
-        if (getbits(binaryTag, 4, 5) < 31) {
-            return false;
+        if ((decimalTag & 0x1F) == 0x1F) {
+            return true;
         }
-        return true;
+        return false;
     }
 
     // Table 36, check the last bit
-    if (binaryTag >= 128) {
+    if (decimalTag >= 0x80) {
         return true;
     }
     return false;
@@ -51,13 +49,14 @@ bool tag_encode(char* tag, bool first_byte, bool *constructed) {
 
 int length_encode(char* length, bool *length_of_length) {
     int decimalLength = (int)strtol(length, NULL, 16);
-    if (decimalLength < 128 || *length_of_length) {
+    // check bit8
+    if (decimalLength < 0x80 || *length_of_length) {
         return decimalLength;    
     }
     
-    // get bits from 1 to 7
     *length_of_length = true;
-    return getbits(decimalLength, 6, 7);
+    // get bits from 1 to 7
+    return decimalLength & 0x7F;
 }
 
 // tlv will be moved 2 places left, after every print of tag, length or value
